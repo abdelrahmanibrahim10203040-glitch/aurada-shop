@@ -9,4 +9,4 @@ database_id = "ecc28e43-dc4b-49d8-8fc2-d9a8ad0c4199"
 
 [[r2_buckets]]
 binding = "BUCKET"
-bucket_name = "aurada-images"
+bucket_name = "auradaina-images"
