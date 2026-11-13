@@ -1,14 +1,24 @@
 import {json,login,authed,cookie} from "./_lib.js";
 export async function onRequest({request:req,env,params}){
   const path=(params.path||[]).join("/"),M=req.method;
+  
+  // السماح للعامة بجلب المنتجات بدون تسجيل دخول
+  if(path==="products"&&M==="GET"){
+    const {results}=await env.DB.prepare("SELECT data FROM products ORDER BY pos").all();
+    return json(results.map(r=>JSON.parse(r.data)));
+  }
+
   if(path==="login"&&M==="POST"){const b=await req.json().catch(()=>({}));const v=await login(env,b.password);
     return v?json({ok:1},200,{"set-cookie":cookie(v,2592000)}):json({error:"bad"},401)}
   if(path==="logout")return json({ok:1},200,{"set-cookie":cookie("",0)});
+  
+  // باقي عمليات الأدمن تتطلب توثيق
   if(!await authed(req,env))return json({error:"auth"},401);
-  if(path==="products"&&M==="GET"){const {results}=await env.DB.prepare("SELECT data FROM products ORDER BY pos").all();return json(results.map(r=>JSON.parse(r.data)))}
+  
   if(path==="upload"&&M==="POST"){const t=req.headers.get("content-type")||"";if(!/^image\/(webp|jpeg|png)$/.test(t))return json({error:"type"},400);
     const buf=await req.arrayBuffer();if(buf.byteLength>6e6)return json({error:"big"},413);
     const k=crypto.randomUUID().slice(0,12)+".webp";await env.BUCKET.put(k,buf,{httpMetadata:{contentType:t}});return json({url:"/api/img/"+k})}
+  
   const m=path.match(/^products\/([\w-]+)$/);
   if(m&&M==="PUT"){const p=await req.json();p.id=m[1];
     const old=await env.DB.prepare("SELECT pos FROM products WHERE id=?").bind(p.id).first();
