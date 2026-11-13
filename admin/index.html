@@ -1,0 +1,37 @@
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>لوحة التحكم – AURA DA</title>
+<style>*{box-sizing:border-box}body{font-family:Cairo,system-ui,sans-serif;margin:0;background:#f6f3ee;color:#161310}header{background:#161310;color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:5}
+main{max-width:760px;margin:auto;padding:14px}button,input,textarea,select{font:inherit}button{cursor:pointer;border:0;border-radius:10px;padding:10px 16px;background:#161310;color:#fff}button.l{background:#fff;color:#161310;border:1px solid #ccc}button.r{background:#b3261e}
+input,textarea{width:100%;padding:10px;border:1px solid #ccc;border-radius:10px;background:#fff;margin:4px 0 12px}label{font-weight:600;font-size:14px}.c{background:#fff;border-radius:14px;padding:14px;margin:10px 0}
+.it{display:flex;gap:12px;align-items:center;cursor:pointer}.it img{width:54px;height:72px;object-fit:cover;border-radius:8px;background:#eee}.it small{color:#777;display:block}.g{display:grid;grid-template-columns:1fr 1fr;gap:10px}.imgs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}.imgs div{width:92px;text-align:center}.imgs img{width:92px;height:122px;object-fit:cover;border-radius:8px}.imgs button{padding:3px 8px;font-size:13px}
+.chk{display:flex;gap:8px;align-items:center;margin:6px 0}.chk input{width:auto;margin:0}.bar{position:sticky;bottom:0;background:#f6f3ee;padding:10px 0;display:flex;gap:8px}.bar button{flex:1}.tg{background:#e2b95a;border-radius:20px;padding:1px 8px;font-size:12px}</style></head><body>
+<header><b>AURA DA – إدارة المنتجات</b><button class="l" id="out" hidden>خروج</button></header><main id="m"></main>
+<script>
+var $=function(s){return document.querySelector(s)},L=[],E=null,m=$("#m");
+function api(p,o){o=o||{};return fetch("/api/admin/"+p,o).then(function(r){if(r.status==401){login();throw 0}return r.json()})}
+function login(){$("#out").hidden=true;m.innerHTML='<div class="c"><label>كلمة السر</label><input id="pw" type="password"><button id="go">دخول</button><p id="er" style="color:#b3261e"></p></div>';
+ $("#go").onclick=function(){fetch("/api/admin/login",{method:"POST",body:JSON.stringify({password:$("#pw").value})}).then(function(r){r.ok?load():$("#er").textContent="كلمة السر غلط"})}}
+function load(){$("#out").hidden=false;api("products").then(function(d){L=d;list()}).catch(function(){})}
+$("#out").onclick=function(){fetch("/api/admin/logout").then(login)};
+function list(){E=null;m.innerHTML='<button id="nw" style="width:100%">+ إضافة منتج جديد</button>'+L.map(function(p,i){return '<div class="c it" data-i="'+i+'"><img src="'+(p.img||[])[0]+'"><div><b>'+p.name+'</b> '+(p.hide?'<span class="tg">مخفي</span>':'')+'<small>'+(p.color||"")+(p.cat?' · '+p.cat:'')+' · '+(p.price?p.price+' ج.م':'بدون سعر')+(p.hidePrice?' (السعر مخفي)':'')+'</small></div></div>'}).join("");
+ $("#nw").onclick=function(){edit({id:"p"+Date.now(),name:"",img:[]},true)};m.onclick=function(e){var t=e.target.closest(".it");if(t)edit(JSON.parse(JSON.stringify(L[t.dataset.i])))}}
+function v(id){return $("#"+id).value.trim()}
+function edit(p,isNew){E=p;var f=function(id,l,val,ta){return '<label>'+l+'</label>'+(ta?'<textarea id="'+id+'" rows="4">':'<input id="'+id+'" value="')+(val||"").toString().replace(/"/g,"&quot;")+(ta?'</textarea>':'">')};
+ m.innerHTML='<div class="c"><button class="l" id="bk">→ رجوع</button><div id="im"></div><label>إضافة صور</label><input id="up" type="file" accept="image/*" multiple>'+
+ f("name","اسم المنتج",p.name)+'<div class="g">'+f("color","اللون",p.color)+f("cat","القسم",p.cat)+f("price","السعر (ج.م)",p.price)+f("old","السعر قبل الخصم (اختياري)",p.old)+'</div>'+
+ f("sz","المقاسات (افصل بينها بفاصلة، سيبها فاضية للمقاسات الافتراضية)",(p.sz||[]).join(", "))+f("tag","شارة على الصورة (مثال: تخفيضات)",p.tag)+f("note","ملاحظة حمراء (مثال: قطعة واحدة فقط)",p.note)+f("desc","الوصف",p.desc,1)+f("specs","مميزات (كل سطر نقطة)",(p.specs||[]).join("\n"),1)+
+ '<div class="chk"><input type="checkbox" id="hp"'+(p.hidePrice?' checked':'')+'><label for="hp">إخفاء السعر</label></div><div class="chk"><input type="checkbox" id="hd"'+(p.hide?' checked':'')+'><label for="hd">إخفاء المنتج من الموقع</label></div></div>'+
+ '<div class="bar"><button id="sv">حفظ</button>'+(isNew?'':'<button class="l" id="dp">نسخ (لون آخر)</button><button class="r" id="dl">حذف</button>')+'</div>';
+ imgs();$("#bk").onclick=list;
+ $("#up").onchange=function(e){var fs=[].slice.call(e.target.files),b=$("#up");b.disabled=true;fs.reduce(function(pr,f){return pr.then(function(){return shrink(f)}).then(function(bl){return fetch("/api/admin/upload",{method:"POST",headers:{"content-type":"image/webp"},body:bl}).then(function(r){return r.json()})}).then(function(r){if(r.url){E.img.push(r.url);imgs()}})},Promise.resolve()).then(function(){b.disabled=false;b.value=""})};
+ $("#sv").onclick=function(){if(!v("name"))return alert("اكتبي اسم المنتج");if(!E.img.length&&!confirm("المنتج بدون صور، متأكدة؟"))return;
+  E.name=v("name");E.color=v("color");E.cat=v("cat");E.tag=v("tag");E.note=v("note");E.desc=v("desc");
+  E.price=+v("price")||undefined;E.old=+v("old")||undefined;E.sz=v("sz")?v("sz").split(/[,،]/).map(function(x){return x.trim()}).filter(Boolean):undefined;
+  E.specs=v("specs")?v("specs").split("\n").map(function(x){return x.trim()}).filter(Boolean):undefined;E.hidePrice=$("#hp").checked||undefined;E.hide=$("#hd").checked||undefined;
+  api("products/"+E.id,{method:"PUT",body:JSON.stringify(E)}).then(load)};
+ if(!isNew){$("#dl").onclick=function(){confirm("حذف المنتج نهائياً بصوره؟")&&api("products/"+E.id,{method:"DELETE"}).then(load)};
+  $("#dp").onclick=function(){var c=JSON.parse(JSON.stringify(E));c.id="p"+Date.now();c.img=[];c.color="";edit(c,true);alert("اكتبي اللون الجديد وارفعي صوره ثم احفظي")}}}
+function imgs(){$("#im").innerHTML='<div class="imgs">'+E.img.map(function(u,i){return '<div><img src="'+u+'"><button class="l" data-a="l" data-i="'+i+'">◀</button><button class="l" data-a="r" data-i="'+i+'">▶</button><button class="r" data-a="x" data-i="'+i+'">✕</button></div>'}).join("")+'</div><small>الصورة الأولى هي الأمامية والثانية الخلفية</small>';
+ $("#im").onclick=function(e){var b=e.target.closest("button");if(!b)return;var i=+b.dataset.i,a=b.dataset.a,x=E.img;if(a=="x")x.splice(i,1);else{var j=a=="l"?i-1:i+1;if(j>=0&&j<x.length){var t=x[i];x[i]=x[j];x[j]=t}}imgs()}}
+function shrink(f){return new Promise(function(ok){var u=URL.createObjectURL(f),im=new Image();im.onload=function(){var k=Math.min(1,1400/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=im.width*k;c.height=im.height*k;c.getContext("2d").drawImage(im,0,0,c.width,c.height);c.toBlob(ok,"image/webp",.85)};im.src=u})}
+load();
+</script></body></html>
