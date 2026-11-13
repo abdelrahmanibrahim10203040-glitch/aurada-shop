@@ -1,4 +1,4 @@
-import {json,login,authed,cookie} from "../../_lib.js";
+import {json,login,authed,cookie} from "./_lib.js";
 export async function onRequest({request:req,env,params}){
   const path=(params.path||[]).join("/"),M=req.method;
   if(path==="login"&&M==="POST"){const b=await req.json().catch(()=>({}));const v=await login(env,b.password);
